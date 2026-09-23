@@ -8,6 +8,7 @@ import {
 } from "react";
 import { AlertCircle, Inbox, LoaderCircle, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import SearchableSelect from "./SearchableSelect";
 export function PageTitle({
   eyebrow,
   title,
@@ -254,6 +255,11 @@ export interface Field {
   min?: number;
   step?: string;
   options?: { value: string; label: string }[];
+  getOptions?: (
+    values: Record<string, string>,
+  ) => { value: string; label: string }[];
+  dependsOn?: string;
+  searchable?: boolean;
   section?: string;
 }
 export function DataForm({
@@ -276,6 +282,15 @@ export function DataForm({
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  function changeSelect(name: string, value: string) {
+    setValues((current) => {
+      const next = { ...current, [name]: value };
+      for (const field of fields) {
+        if (field.dependsOn === name) next[field.name] = "";
+      }
+      return next;
+    });
+  }
   async function submit(e: FormEvent) {
     e.preventDefault();
     const next: Record<string, string> = {};
@@ -332,16 +347,35 @@ export function DataForm({
               {f.label}
               {f.required && " *"}
             </label>
-            {f.options ? (
+            {f.searchable ? (
+              <SearchableSelect
+                id={f.name}
+                label={f.label}
+                value={values[f.name]}
+                options={f.getOptions?.(values) ?? f.options ?? []}
+                onChange={(value) => changeSelect(f.name, value)}
+                invalid={!!errors[f.name]}
+                describedBy={errors[f.name] ? `${f.name}-error` : undefined}
+              />
+            ) : f.options || f.getOptions ? (
               <select
                 id={f.name}
-                value={values[f.name]}
-                onChange={(e) =>
-                  setValues({ ...values, [f.name]: e.target.value })
+                value={
+                  (f.getOptions?.(values) ?? f.options ?? []).some(
+                    (option) => option.value === values[f.name],
+                  )
+                    ? values[f.name]
+                    : ""
                 }
+                disabled={!!f.dependsOn && !values[f.dependsOn]}
+                aria-invalid={!!errors[f.name]}
+                aria-describedby={
+                  errors[f.name] ? `${f.name}-error` : undefined
+                }
+                onChange={(e) => changeSelect(f.name, e.target.value)}
               >
                 <option value="">Seleccionar…</option>
-                {f.options.map((o) => (
+                {(f.getOptions?.(values) ?? f.options ?? []).map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>

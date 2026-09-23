@@ -1,18 +1,32 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { Layers3, ArrowRight, ShieldCheck, Boxes, Users } from "lucide-react";
 import { supabase, configurationError } from "@/lib/supabase";
-import { useAuth } from "@/context/auth";
+import { useAuth, homeForRole } from "@/context/auth";
 import { Button } from "@/components/ui/button";
 export default function Login() {
-  const { session, loading, error: authError } = useAuth();
-  const location = useLocation();
+  const { session, role, logout, loading, error: authError } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  if (session)
-    return <Navigate to={location.state?.from || "/dashboard"} replace />;
+  if (!loading && session && role)
+    return <Navigate to={homeForRole(role)} state={null} replace />;
+  if (!loading && session && !role)
+    return (
+      <div className="error-panel">
+        <h1>Cuenta sin rol asignado</h1>
+        <p>Solicita al administrador que asigne un rol a tu cuenta.</p>
+        <Button
+          onClick={() =>
+            void logout().catch(() => setError("No se pudo cerrar la sesión"))
+          }
+        >
+          Cerrar sesión
+        </Button>
+        {error && <p role="alert">{error}</p>}
+      </div>
+    );
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);

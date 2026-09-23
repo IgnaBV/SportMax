@@ -82,6 +82,17 @@ const fixture = {
   documentos_trabajador: [],
   horarios: [],
 };
+for (let i = 2; i <= 80; i++)
+  fixture.trabajadores.push({
+    ...fixture.trabajadores[0],
+    id: i,
+    nombres: "Persona " + i,
+    apellidos: "Fixture",
+    identificacion: "TEST-" + i,
+    area: "Operaciones",
+    cargo: "Asistente",
+    estado: i % 2 ? "ACTIVO" : "INACTIVO",
+  });
 const browser = await chromium.launch({ channel: "msedge", headless: true });
 let count = 0;
 const errors = [];
@@ -141,8 +152,78 @@ async function context(role = "ADMINISTRADOR", mode = "data") {
       return r.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(mode === "empty" ? [] : fixture[table] || []),
+        body: JSON.stringify(
+          mode === "empty"
+            ? []
+            : (fixture[table] || []).filter((row) => {
+                const params = new URL(req.url()).searchParams;
+                return ["id", "trabajador_id"].every(
+                  (key) =>
+                    !params.has(key) ||
+                    String(row[key]) === params.get(key).replace(/^eq\./, ""),
+                );
+              }),
+        ),
       });
+    if (table === "actualizar_horario_rrhh") {
+      const body = req.postDataJSON();
+      assert.equal(body.p_trabajador_id, 1);
+      const current = fixture.horarios[0];
+      const next = {
+        id: 1,
+        trabajador_id: 1,
+        hora_entrada: body.p_hora_entrada,
+        hora_salida: body.p_hora_salida,
+        activo: true,
+        updated_at: new Date().toISOString(),
+        updated_by_label: "prueba@example.invalid",
+      };
+      next.historial = [
+        ...(current?.historial || []),
+        {
+          fecha: next.updated_at,
+          responsable: next.updated_by_label,
+          accion: current ? "ACTUALIZACION" : "REGISTRO",
+          anterior: current
+            ? {
+                hora_entrada: current.hora_entrada,
+                hora_salida: current.hora_salida,
+              }
+            : null,
+          nuevo: {
+            hora_entrada: next.hora_entrada,
+            hora_salida: next.hora_salida,
+          },
+        },
+      ];
+      fixture.horarios = [next];
+      return r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(next),
+      });
+    }
+    if (table === "documentos_trabajador") {
+      const body = req.postDataJSON();
+      if (req.method() === "POST") {
+        assert.equal(body.trabajador_id, "1");
+        fixture.documentos_trabajador.push({
+          ...body,
+          id: 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          updated_by_label: "prueba@example.invalid",
+        });
+      } else
+        Object.assign(fixture.documentos_trabajador[0], body, {
+          updated_at: new Date().toISOString(),
+        });
+      return r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ id: 1 }),
+      });
+    }
     if (path.includes("/rpc/")) {
       const body = req.postDataJSON();
       assert.equal(body.p_tipo, "ENTRADA");
@@ -235,7 +316,7 @@ try {
     .click();
   for (const name of [
     "Información",
-    "Horarios",
+    "Horario",
     "Asistencia",
     "Permisos",
     "Vacaciones",
@@ -245,7 +326,89 @@ try {
     assert.ok((await page.getByRole("tabpanel").innerText()).trim().length > 0);
     count++;
   }
+  await page.getByRole("tab", { name: "Horario", exact: true }).click();
+  await page.getByRole("button", { name: "Asignar horario" }).click();
+  await page.getByLabel("Hora de entrada").fill("09:00");
+  await page.getByLabel("Hora de salida").fill("18:00");
+  await page.getByRole("button", { name: "Guardar cambios" }).click();
+  await page.getByText("09:00 — 18:00", { exact: true }).waitFor();
+  count++;
+  await page.getByRole("button", { name: "Actualizar horario" }).click();
+  await page.getByLabel("Hora de entrada").fill("08:30");
+  await page.getByRole("button", { name: "Guardar cambios" }).click();
+  await page.getByText("08:30 — 18:00", { exact: true }).waitFor();
+  await page.getByText("Historial de cambios (2)").click();
+  await page.getByText("ACTUALIZACION", { exact: true }).waitFor();
+  count++;
+  await page.getByRole("tab", { name: "Asistencia", exact: true }).click();
+  await page.getByText("30 min después de la entrada prevista").waitFor();
+  count++;
+  await page.getByRole("tab", { name: "Documentos", exact: true }).click();
+  await page.getByRole("button", { name: "Añadir documento" }).click();
+  assert.equal(
+    await page
+      .getByRole("dialog")
+      .getByLabel("Trabajador", { exact: true })
+      .count(),
+    0,
+  );
+  await page.getByLabel("Nombre del documento").fill("Referencia de prueba");
+  await page.getByLabel("Tipo *", { exact: true }).fill("Contrato");
+  await page.getByRole("button", { name: "Guardar cambios" }).click();
+  await page.getByText("Referencia de prueba", { exact: true }).waitFor();
+  count++;
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await page.getByLabel("Nombre del documento").fill("Referencia actualizada");
+  await page.getByRole("button", { name: "Guardar cambios" }).click();
+  await page.getByText("Referencia actualizada", { exact: true }).waitFor();
+  count++;
+  await page.getByRole("tab", { name: "Permisos", exact: true }).click();
+  await page.getByRole("button", { name: "Consultar", exact: true }).click();
+  assert.equal(
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Aprobar", exact: true })
+      .count(),
+    0,
+  );
   await page.keyboard.press("Escape");
+  count++;
+  await page.goto(base + "/hr/employees");
+  await page.getByText("80 de 80 trabajadores", { exact: false }).waitFor();
+  assert.equal(await page.locator("tbody tr").count(), 12);
+  await page.getByRole("button", { name: "Siguiente" }).click();
+  count++;
+  await page
+    .getByRole("combobox", { name: "Cargo", exact: true })
+    .selectOption("Analista");
+  await page.getByText("1 de 80 trabajadores", { exact: false }).waitFor();
+  assert.equal(await page.locator("tbody tr").count(), 1);
+  await page
+    .getByRole("combobox", { name: "Área", exact: true })
+    .selectOption("Administración");
+  await page
+    .getByRole("combobox", { name: "Estado", exact: true })
+    .selectOption("ACTIVO");
+  await page
+    .getByRole("textbox", { name: "Buscar nombre o identificación…" })
+    .fill("persona");
+  assert.equal(await page.locator("tbody tr").count(), 1);
+  count++;
+  await page.goto(base + "/hr/employees/1?tab=horario");
+  await page.getByRole("tab", { name: "Horario", selected: true }).waitFor();
+  await page.screenshot({ path: "tests/hr-record.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 900 });
+  assert.ok(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await page.screenshot({ path: "tests/hr-record-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  count++;
+  await page.goto(base + "/hr/employees/999999");
+  await page.getByText("Trabajador no encontrado", { exact: true }).waitFor();
+  count++;
   await page.goto(base + "/hr/attendance");
   await page.getByRole("button", { name: "Editar asistencia" }).click();
   await page.getByLabel("Hora de salida").fill("18:00");
@@ -296,6 +459,8 @@ try {
   await ctx.close();
   for (const [role, route] of [
     ["INVENTARIO", "/hr"],
+    ["INVENTARIO", "/hr/employees/1"],
+    ["GERENCIA", "/hr/employees/1"],
     ["RRHH", "/inventory"],
     ["UNKNOWN", "/dashboard"],
   ]) {

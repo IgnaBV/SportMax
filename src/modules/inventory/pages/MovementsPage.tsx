@@ -7,10 +7,24 @@ import {
   Badge,
 } from "@/components/common/UI";
 import { useQuery } from "@/hooks/useQuery";
-import { loadInventory } from "../services/inventory";
+import { loadInventory, loadMovementNames } from "../services/inventory";
+import { useAuth } from "@/context/auth";
 import { same, date } from "@/lib/data";
 export default function MovementsPage() {
   const q = useQuery(loadInventory);
+  const names = useQuery(loadMovementNames);
+  const { session } = useAuth();
+  const responsibleName = (id: string) => {
+    if (!id) return "—";
+    if (names.data?.[id]) return names.data[id];
+    if (id === session?.user.id) {
+      const metadata = session.user.user_metadata;
+      return metadata.full_name || metadata.name || metadata.nombre || session.user.email || "Usuario sin nombre";
+    }
+    return /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id)
+      ? names.loading ? "Cargando responsable…" : "Nombre no disponible"
+      : id;
+  };
   const [search, setSearch] = useState("");
   const [branch, setBranch] = useState("");
   const [type, setType] = useState("");
@@ -90,6 +104,7 @@ export default function MovementsPage() {
           </p>
         )}
         <QueryState {...q}>
+          {names.error && <p className="notice" role="status">{names.error}</p>}
           <Table
             headers={[
               "Fecha",
@@ -112,7 +127,7 @@ export default function MovementsPage() {
               m.cantidad_anterior,
               m.cantidad_nueva,
               m.motivo,
-              m.responsable || "—",
+              responsibleName(m.responsable),
             ])}
           />
         </QueryState>

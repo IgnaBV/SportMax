@@ -42,6 +42,17 @@ export function saveProduct(v: Record<string, string>, id?: Id) {
     id,
   );
 }
+export async function loadMovementNames(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.rpc("nombres_responsables_inventario");
+  if (error) throw new Error(
+    error.code === "PGRST202"
+      ? "Para mostrar los nombres de los responsables, aplica la migración 20260923_movimientos_responsables.sql en Supabase."
+      : "No se pudieron cargar los nombres de los responsables.",
+  );
+  return Object.fromEntries(
+    (data as { responsable: string; nombre: string }[]).map((user) => [user.responsable, user.nombre]),
+  );
+}
 export async function registerMovement(input: {
   producto_id: string;
   sucursal_id: string;

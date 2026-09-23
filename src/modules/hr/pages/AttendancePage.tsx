@@ -1,6 +1,7 @@
-import { useState } from "react";
+import SearchableSelect from "@/components/common/SearchableSelect";
+import { useState, useCallback } from "react";
 import { Plus, Pencil } from "lucide-react";
-import type { Attendance } from "@/types/entities";
+import type { Attendance, Id } from "@/types/entities";
 import { Button } from "@/components/ui/button";
 import {
   PageTitle,
@@ -14,40 +15,62 @@ import { useQuery } from "@/hooks/useQuery";
 import { loadHR, saveAttendance } from "../services/hr";
 import { date, same, fullName } from "@/lib/data";
 import { useToast } from "@/context/toast";
-export default function AttendancePage() {
-  const q = useQuery(loadHR);
+import { AuditStamp } from "../components/Audit";
+import { compareAttendance, hour } from "../services/presentation";
+export default function AttendancePage({ employeeId }: { employeeId?: Id }) {
+  const loader = useCallback(() => loadHR(employeeId), [employeeId]);
+  const q = useQuery(loader);
   const toast = useToast();
   const [employee, setEmployee] = useState("");
   const [day, setDay] = useState("");
   const [edit, setEdit] = useState<Attendance | "new" | null>(null);
   const d = q.data;
+  const selected = employeeId ?? employee;
+  const schedule = (id: Id) => {
+    const matches =
+      d?.schedules.filter((s) => s.activo && same(s.trabajador_id, id)) || [];
+    return matches.length === 1 ? matches[0] : undefined;
+  };
+  const action = (
+    <Button onClick={() => setEdit("new")}>
+      <Plus />
+      Registrar asistencia
+    </Button>
+  );
   return (
     <>
-      <PageTitle
-        eyebrow="RECURSOS HUMANOS / CONTROL DIARIO"
-        title="Asistencia"
-        description="Un registro claro de cada jornada de trabajo."
-        action={
-          <Button onClick={() => setEdit("new")}>
-            <Plus />
-            Registrar asistencia
-          </Button>
-        }
-      />
+      {employeeId ? (
+        <div className="record-section-heading">
+          <div>
+            <h2>Asistencia</h2>
+            <p>Registro de jornada y comparación con el horario vigente.</p>
+          </div>
+          {action}
+        </div>
+      ) : (
+        <PageTitle
+          eyebrow="RECURSOS HUMANOS / CONTROL DIARIO"
+          title="Asistencia"
+          description="Un registro claro de cada jornada de trabajo."
+          action={action}
+        />
+      )}
       <section className="panel">
         <div className="toolbar">
-          <select
-            aria-label="Trabajador"
-            value={employee}
-            onChange={(e) => setEmployee(e.target.value)}
-          >
-            <option value="">Todos los trabajadores</option>
-            {d?.employees.map((e) => (
-              <option key={e.id} value={e.id}>
-                {fullName(e)}
-              </option>
-            ))}
-          </select>
+          {!employeeId && (
+            <SearchableSelect
+              label="Trabajador"
+              value={employee}
+              onChange={setEmployee}
+              placeholder="Todos los trabajadores"
+              options={
+                d?.employees.map((e) => ({
+                  value: String(e.id),
+                  label: fullName(e),
+                })) ?? []
+              }
+            />
+          )}
           <label>
             Fecha
             <input
@@ -66,22 +89,30 @@ export default function AttendancePage() {
             Limpiar filtros
           </Button>
         </div>
+        <p className="inline-summary">
+          Comparación orientativa con el horario vigente. No recalcula el estado
+          ni reconstruye horarios de jornadas anteriores.
+        </p>
         <QueryState {...q}>
           <Table
+            key={`${selected}-${day}`}
             headers={[
               "Trabajador",
               "Fecha",
-              "Entrada",
-              "Salida",
+              "Entrada registrada",
+              "Salida registrada",
+              "Horario vigente",
+              "Comparación de entrada",
               "Estado",
               "Observación",
+              "Última modificación",
               "Acciones",
             ]}
             rows={
               d?.attendance
                 .filter(
                   (a) =>
-                    (!employee || same(employee, a.trabajador_id)) &&
+                    (!selected || same(selected, a.trabajador_id)) &&
                     (!day || a.fecha === day),
                 )
                 .map((a) => [
@@ -92,10 +123,15 @@ export default function AttendancePage() {
                     },
                   ),
                   date(a.fecha),
-                  a.hora_entrada || "—",
-                  a.hora_salida || "—",
+                  hour(a.hora_entrada),
+                  hour(a.hora_salida),
+                  schedule(a.trabajador_id)
+                    ? `${hour(schedule(a.trabajador_id)?.hora_entrada)} — ${hour(schedule(a.trabajador_id)?.hora_salida)}`
+                    : "Sin horario",
+                  compareAttendance(a, schedule(a.trabajador_id)),
                   <Badge>{a.estado}</Badge>,
                   a.observacion || "—",
+                  <AuditStamp record={a} />,
                   <Button
                     variant="ghost"
                     size="icon"
@@ -115,25 +151,35 @@ export default function AttendancePage() {
           onClose={() => setEdit(null)}
         >
           <DataForm
-            initial={edit === "new" ? { estado: "PRESENTE" } : { ...edit }}
+            initial={
+              edit === "new"
+                ? { estado: "PRESENTE", trabajador_id: String(selected) }
+                : { ...edit }
+            }
             onClose={() => setEdit(null)}
             fields={[
-              {
-                name: "trabajador_id",
-                label: "Trabajador",
-                required: true,
-                options:
-                  d?.employees
-                    .filter(
-                      (e) =>
-                        e.estado === "ACTIVO" ||
-                        (edit !== "new" && same(e.id, edit.trabajador_id)),
-                    )
-                    .map((e) => ({
-                      value: String(e.id),
-                      label: fullName(e),
-                    })) || [],
-              },
+              ...(!employeeId
+                ? [
+                    {
+                      name: "trabajador_id",
+                      searchable: true,
+                      label: "Trabajador",
+                      required: true,
+                      options:
+                        d?.employees
+                          .filter(
+                            (e) =>
+                              e.estado === "ACTIVO" ||
+                              (edit !== "new" &&
+                                same(e.id, edit.trabajador_id)),
+                          )
+                          .map((e) => ({
+                            value: String(e.id),
+                            label: fullName(e),
+                          })) || [],
+                    },
+                  ]
+                : []),
               { name: "fecha", label: "Fecha", type: "date", required: true },
               { name: "hora_entrada", label: "Hora de entrada", type: "time" },
               { name: "hora_salida", label: "Hora de salida", type: "time" },
@@ -149,10 +195,14 @@ export default function AttendancePage() {
             ]}
             validate={(v) => {
               const errors: Record<string, string> = {};
+              const id = employeeId ?? v.trabajador_id;
+              const planned = schedule(id);
+              const overnight =
+                planned && planned.hora_salida < planned.hora_entrada;
               if (
                 d?.attendance.some(
                   (a) =>
-                    same(a.trabajador_id, v.trabajador_id) &&
+                    same(a.trabajador_id, id) &&
                     (edit === "new" || !same(a.id, edit.id)) &&
                     a.fecha === v.fecha,
                 )
@@ -161,16 +211,21 @@ export default function AttendancePage() {
                   "Ya existe asistencia para este trabajador y fecha";
               if (
                 v.hora_salida &&
-                (!v.hora_entrada || v.hora_salida <= v.hora_entrada)
+                (!v.hora_entrada ||
+                  v.hora_salida === v.hora_entrada ||
+                  (!overnight && v.hora_salida < v.hora_entrada))
               )
                 errors.hora_salida =
-                  "La salida debe ser posterior a la entrada";
+                  "La salida debe ser posterior a la entrada (salvo un horario nocturno asignado)";
               if (["PRESENTE", "ATRASO"].includes(v.estado) && !v.hora_entrada)
                 errors.hora_entrada = "Registra la hora de entrada";
               return errors;
             }}
             onSave={async (v) => {
-              await saveAttendance(v, edit === "new" ? undefined : edit.id);
+              await saveAttendance(
+                { ...v, trabajador_id: String(employeeId ?? v.trabajador_id) },
+                edit === "new" ? undefined : edit.id,
+              );
               setEdit(null);
               q.reload();
               toast("Asistencia registrada correctamente");

@@ -3,15 +3,21 @@ import type { Id } from "@/types/entities";
 export function checkConfiguration() {
   if (configurationError) throw new Error(configurationError);
 }
-export async function list<T>(table: string, columns = "*"): Promise<T[]> {
+export async function list<T>(
+  table: string,
+  columns = "*",
+  filter?: { column: string; value: Id },
+): Promise<T[]> {
   checkConfiguration();
   const rows: T[] = [];
   for (let start = 0; ; start += 1000) {
-    const { data, error } = await supabase
+    let query = supabase
       .from(table)
       .select(columns)
       .order("id")
       .range(start, start + 999);
+    if (filter) query = query.eq(filter.column, filter.value);
+    const { data, error } = await query;
     if (error) throw new Error(`${table}: ${error.message}`);
     rows.push(...(data as unknown as T[]));
     if (data.length < 1000) return rows;

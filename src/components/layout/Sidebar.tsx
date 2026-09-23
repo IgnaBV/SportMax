@@ -1,3 +1,4 @@
+import { canReadHR } from "@/modules/hr/permissions";
 import { NavLink } from "react-router-dom";
 import { useEffect, useRef } from "react";
 import {
@@ -17,8 +18,7 @@ import {
   Layers3,
   X,
 } from "lucide-react";
-import { useAuth } from "@/context/auth";
-import { supabase } from "@/lib/supabase";
+import { useAuth, homeForRole } from "@/context/auth";
 import { useToast } from "@/context/toast";
 const inventory = [
   ["/inventory", "Resumen", Boxes],
@@ -44,7 +44,7 @@ export default function Sidebar({
   open: boolean;
   onClose: () => void;
 }) {
-  const { session, role } = useAuth();
+  const { session, role, logout } = useAuth();
   const toast = useToast();
   const sidebar = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -99,17 +99,19 @@ export default function Sidebar({
         >
           <X size={18} />
         </button>
-        <NavLink to="/dashboard" className="brand" onClick={onClose}>
+        <NavLink to={homeForRole(role)} className="brand" onClick={onClose}>
           <div className="brand-mark">
             <Layers3 />
           </div>
           <div>Sport Max</div>
         </NavLink>
         <nav>
-          <NavLink to="/dashboard" onClick={onClose}>
-            <LayoutDashboard size={18} />
-            Dashboard
-          </NavLink>
+          {role === "ADMINISTRADOR" && (
+            <NavLink to="/dashboard" onClick={onClose}>
+              <LayoutDashboard size={18} />
+              Dashboard
+            </NavLink>
+          )}
           {(role === "ADMINISTRADOR" || role === "INVENTARIO") && (
             <>
               <p className="nav-label">INVENTARIOS</p>
@@ -121,7 +123,7 @@ export default function Sidebar({
               ))}
             </>
           )}
-          {(role === "ADMINISTRADOR" || role === "RRHH") && (
+          {canReadHR(role) && (
             <>
               <p className="nav-label">RECURSOS HUMANOS</p>
               {hr.map(([path, label, Icon]) => (
@@ -145,8 +147,16 @@ export default function Sidebar({
             title="Cerrar sesión"
             aria-label="Cerrar sesión"
             onClick={async () => {
-              const { error } = await supabase.auth.signOut();
-              if (error) toast(error.message, true);
+              try {
+                await logout();
+              } catch (error) {
+                toast(
+                  error instanceof Error
+                    ? error.message
+                    : "No se pudo cerrar la sesión",
+                  true,
+                );
+              }
             }}
           >
             <LogOut size={18} />

@@ -1,3 +1,4 @@
+import { HR_ROLES } from "@/modules/hr/permissions";
 import { lazy } from "react";
 import {
   Navigate,
@@ -7,7 +8,7 @@ import {
   useLocation,
   Link,
 } from "react-router-dom";
-import { useAuth, type Role } from "@/context/auth";
+import { useAuth, homeForRole, type Role } from "@/context/auth";
 import AppLayout from "@/components/layout/AppLayout";
 const Login = lazy(() => import("@/pages/Login"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
@@ -34,43 +35,42 @@ const PermissionsPage = lazy(
 );
 const VacationsPage = lazy(() => import("@/modules/hr/pages/VacationsPage"));
 const DocumentsPage = lazy(() => import("@/modules/hr/pages/DocumentsPage"));
+const EmployeeDetail = lazy(
+  () => import("@/modules/hr/components/EmployeeDetail"),
+);
 function Protected() {
-  const { session, loading } = useAuth();
-  const location = useLocation();
+  const { session, role, loading } = useAuth();
+  const { pathname } = useLocation();
   if (loading) return <div className="loading">Recuperando sesión…</div>;
-  if (!session)
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  if (!session) return <Navigate to="/login" state={null} replace />;
+  if (!role) return <Navigate to="/login" state={null} replace />;
+  const home = homeForRole(role);
+  if (
+    role !== "ADMINISTRADOR" &&
+    pathname !== home &&
+    !pathname.startsWith(`${home}/`)
+  )
+    return <Navigate to={home} state={null} replace />;
   return <Outlet />;
 }
 function Allowed({ roles }: { roles: Role[] }) {
   const { role } = useAuth();
   if (!role || !roles.includes(role))
-    return (
-      <div className="error-panel">
-        <h1>Acceso no disponible</h1>
-        <p>
-          Tu cuenta no tiene un rol autorizado para esta sección. Solicita al
-          administrador que revise tus permisos.
-        </p>
-        <Link className="text-link" to="/dashboard">
-          Volver al inicio
-        </Link>
-      </div>
-    );
+    return <Navigate to={homeForRole(role)} state={null} replace />;
   return <Outlet />;
 }
 export default function AppRoutes() {
+  const { role } = useAuth();
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route element={<Protected />}>
         <Route element={<AppLayout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
           <Route
-            element={
-              <Allowed roles={["ADMINISTRADOR", "INVENTARIO", "RRHH"]} />
-            }
-          >
+            index
+            element={<Navigate to={homeForRole(role)} state={null} replace />}
+          />
+          <Route element={<Allowed roles={["ADMINISTRADOR"]} />}>
             <Route path="dashboard" element={<Dashboard />} />
           </Route>
           <Route element={<Allowed roles={["ADMINISTRADOR", "INVENTARIO"]} />}>
@@ -82,9 +82,13 @@ export default function AppRoutes() {
             <Route path="inventory/adjustments" element={<AdjustmentPage />} />
             <Route path="inventory/movements" element={<MovementsPage />} />
           </Route>
-          <Route element={<Allowed roles={["ADMINISTRADOR", "RRHH"]} />}>
+          <Route element={<Allowed roles={HR_ROLES} />}>
             <Route path="hr" element={<HRDashboard />} />
             <Route path="hr/employees" element={<EmployeesPage />} />
+            <Route
+              path="hr/employees/:employeeId"
+              element={<EmployeeDetail />}
+            />
             <Route path="hr/attendance" element={<AttendancePage />} />
             <Route path="hr/permissions" element={<PermissionsPage />} />
             <Route path="hr/vacations" element={<VacationsPage />} />
@@ -97,8 +101,8 @@ export default function AppRoutes() {
                 <h1>404</h1>
                 <h2>No encontramos esta página</h2>
                 <p>Utiliza el menú para continuar.</p>
-                <Link className="text-link" to="/dashboard">
-                  Volver al dashboard
+                <Link className="text-link" to={homeForRole(role)} replace>
+                  Volver al inicio
                 </Link>
               </div>
             }

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import ProductCombobox from "@/components/common/ProductCombobox";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageTitle, QueryState, Confirm } from "@/components/common/UI";
@@ -11,6 +12,7 @@ export default function MovementForm({ type }: { type: MovementType }) {
   const q = useQuery(loadInventory);
   const toast = useToast();
   const [product, setProduct] = useState("");
+  const [category, setCategory] = useState("");
   const [branch, setBranch] = useState("");
   const [quantity, setQuantity] = useState("");
   const [reason, setReason] = useState("");
@@ -18,6 +20,15 @@ export default function MovementForm({ type }: { type: MovementType }) {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const d = q.data;
+  const filteredProducts =
+    d?.products.filter(
+      (p) =>
+        (p.activo || type === "AJUSTE") &&
+        (!category ||
+          (category === "uncategorized"
+            ? p.categoria_id == null
+            : same(p.categoria_id, category))),
+    ) ?? [];
   const stock =
     d?.stock.find(
       (s) => same(s.producto_id, product) && same(s.sucursal_id, branch),
@@ -107,22 +118,45 @@ export default function MovementForm({ type }: { type: MovementType }) {
                   </select>
                 </div>
                 <div className="field">
-                  <label htmlFor="product">Producto *</label>
+                  <label htmlFor="category">Tipo de producto / categoría</label>
                   <select
-                    id="product"
-                    required
-                    value={product}
-                    onChange={(e) => setProduct(e.target.value)}
+                    id="category"
+                    value={category}
+                    onChange={(e) => {
+                      setCategory(e.target.value);
+                      setProduct("");
+                      setQuantity("");
+                      setError("");
+                    }}
                   >
-                    <option value="">Selecciona un producto</option>
-                    {d?.products
-                      .filter((p) => p.activo || type === "AJUSTE")
-                      .map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.codigo} · {p.nombre} · {p.talla} {p.color}
-                        </option>
-                      ))}
+                    <option value="">Todas las categorías</option>
+                    {d?.categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombre}
+                      </option>
+                    ))}
+                    <option value="uncategorized">Sin categoría</option>
                   </select>
+                </div>
+                <div className="field wide">
+                  <label htmlFor="product">Producto *</label>
+                  <ProductCombobox
+                    key={category}
+                    id="product"
+                    value={product}
+                    options={filteredProducts.map((p) => ({
+                      value: String(p.id),
+                      label: [p.codigo, p.nombre, p.talla, p.color]
+                        .filter(Boolean)
+                        .join(" · "),
+                      search: p.codigo + " " + p.nombre,
+                    }))}
+                    onChange={(value) => {
+                      setProduct(value);
+                      setQuantity("");
+                      setError("");
+                    }}
+                  />
                 </div>
                 <div className="field wide">
                   <label htmlFor="quantity">
@@ -160,7 +194,9 @@ export default function MovementForm({ type }: { type: MovementType }) {
               <div className="form-actions">
                 <Button
                   type="submit"
-                  disabled={busy || !d?.products.length || !d?.branches.length}
+                  disabled={
+                    busy || !filteredProducts.length || !d?.branches.length
+                  }
                 >
                   Revisar y confirmar
                   <ArrowRight />

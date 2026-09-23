@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, Eye, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,48 +8,42 @@ import {
   SearchBox,
   Table,
   Badge,
-  Modal,
-  DataForm,
-  Confirm,
 } from "@/components/common/UI";
 import { useQuery } from "@/hooks/useQuery";
-import { loadHR, saveEmployee } from "../services/hr";
+import { loadEmployees } from "../services/hr";
 import { fullName, date } from "@/lib/data";
-import { useToast } from "@/context/toast";
-import EmployeeDetail from "../components/EmployeeDetail";
+import EmployeeEditor from "../components/EmployeeEditor";
 import type { Employee } from "@/types/entities";
+const normalize = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 export default function EmployeesPage() {
-  const q = useQuery(loadHR);
-  const toast = useToast();
+  const q = useQuery(loadEmployees);
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [area, setArea] = useState("");
+  const [cargo, setCargo] = useState("");
   const [status, setStatus] = useState("");
   const [edit, setEdit] = useState<Employee | "new" | null>(null);
-  const [view, setView] = useState<Employee | null>(null);
-  const [pending, setPending] = useState<Record<string, string> | null>(null);
-  const [busy, setBusy] = useState(false);
   const rows =
-    q.data?.employees.filter(
+    q.data?.filter(
       (e) =>
-        `${fullName(e)} ${e.identificacion}`
-          .toLowerCase()
-          .includes(search.toLowerCase()) &&
+        normalize(`${fullName(e)} ${e.identificacion}`).includes(
+          normalize(search),
+        ) &&
         (!area || e.area === area) &&
+        (!cargo || e.cargo === cargo) &&
         (!status || e.estado === status),
     ) || [];
-  async function persist(v: Record<string, string>) {
-    await saveEmployee(v, edit && edit !== "new" ? edit.id : undefined);
-    setEdit(null);
-    setPending(null);
-    q.reload();
-    toast("Trabajador guardado correctamente");
-  }
   return (
     <>
       <PageTitle
         eyebrow="RECURSOS HUMANOS / EQUIPO"
         title="Trabajadores"
-        description="Las personas que hacen posible tu empresa."
+        description="Encuentra a cada persona y accede a su ficha centralizada."
         action={
           <Button onClick={() => setEdit("new")}>
             <Plus />
@@ -57,36 +52,76 @@ export default function EmployeesPage() {
         }
       />
       <section className="panel">
-        <div className="toolbar wrap">
-          <SearchBox
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar nombre o identificación…"
-          />
-          <select
-            aria-label="Área"
-            value={area}
-            onChange={(e) => setArea(e.target.value)}
+        <div className="toolbar wrap employee-filters">
+          <label>
+            Nombre o identificación
+            <SearchBox
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar nombre o identificación…"
+            />
+          </label>
+          <label>
+            Área
+            <select
+              aria-label="Área"
+              value={area}
+              onChange={(e) => setArea(e.target.value)}
+            >
+              <option value="">Todas las áreas</option>
+              {[...new Set(q.data?.map((e) => e.area).filter(Boolean))]
+                .sort()
+                .map((a) => (
+                  <option key={a}>{a}</option>
+                ))}
+            </select>
+          </label>
+          <label>
+            Cargo
+            <select
+              aria-label="Cargo"
+              value={cargo}
+              onChange={(e) => setCargo(e.target.value)}
+            >
+              <option value="">Todos los cargos</option>
+              {[...new Set(q.data?.map((e) => e.cargo).filter(Boolean))]
+                .sort()
+                .map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+            </select>
+          </label>
+          <label>
+            Estado
+            <select
+              aria-label="Estado"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="">Todos los estados</option>
+              <option>ACTIVO</option>
+              <option>INACTIVO</option>
+            </select>
+          </label>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch("");
+              setArea("");
+              setCargo("");
+              setStatus("");
+            }}
           >
-            <option value="">Todas las áreas</option>
-            {[
-              ...new Set(q.data?.employees.map((e) => e.area).filter(Boolean)),
-            ].map((a) => (
-              <option key={a}>{a}</option>
-            ))}
-          </select>
-          <select
-            aria-label="Estado"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option value="">Todos los estados</option>
-            <option>ACTIVO</option>
-            <option>INACTIVO</option>
-          </select>
+            Limpiar filtros
+          </Button>
         </div>
         <QueryState {...q}>
+          <p className="inline-summary">
+            {rows.length} de {q.data?.length ?? 0} trabajadores · Abre una ficha
+            para gestionar sus procesos.
+          </p>
           <Table
+            key={`${search}-${area}-${cargo}-${status}`}
             headers={[
               "Trabajador",
               "Identificación",
@@ -115,11 +150,11 @@ export default function EmployeesPage() {
               <div className="row-actions">
                 <Button
                   variant="ghost"
-                  size="icon"
                   aria-label={`Ver ${fullName(e)}`}
-                  onClick={() => setView(e)}
+                  onClick={() => navigate(`/hr/employees/${e.id}`)}
                 >
                   <Eye />
+                  Ver ficha
                 </Button>
                 <Button
                   variant="ghost"
@@ -135,100 +170,10 @@ export default function EmployeesPage() {
         </QueryState>
       </section>
       {edit && (
-        <Modal
-          title={edit === "new" ? "Registrar trabajador" : "Editar trabajador"}
+        <EmployeeEditor
+          employee={edit}
           onClose={() => setEdit(null)}
-        >
-          <DataForm
-            initial={edit === "new" ? { estado: "ACTIVO" } : { ...edit }}
-            onClose={() => setEdit(null)}
-            onSave={async (v) => {
-              if (
-                edit !== "new" &&
-                edit.estado === "ACTIVO" &&
-                v.estado !== "ACTIVO"
-              ) {
-                setPending(v);
-                return;
-              }
-              await persist(v);
-            }}
-            fields={[
-              {
-                name: "nombres",
-                label: "Nombres",
-                required: true,
-                section: "Datos personales",
-              },
-              { name: "apellidos", label: "Apellidos", required: true },
-              {
-                name: "identificacion",
-                label: "Identificación",
-                required: true,
-              },
-              { name: "telefono", label: "Teléfono", type: "tel" },
-              { name: "direccion", label: "Dirección" },
-              {
-                name: "area",
-                label: "Área",
-                required: true,
-                section: "Datos laborales",
-              },
-              { name: "cargo", label: "Cargo", required: true },
-              {
-                name: "fecha_ingreso",
-                label: "Fecha de ingreso",
-                type: "date",
-                required: true,
-              },
-              {
-                name: "salario",
-                label: "Salario",
-                type: "number",
-                min: 0,
-                step: "0.01",
-                required: true,
-              },
-              {
-                name: "estado",
-                label: "Estado",
-                required: true,
-                options: [
-                  { value: "ACTIVO", label: "Activo" },
-                  { value: "INACTIVO", label: "Inactivo" },
-                ],
-              },
-            ]}
-          />
-        </Modal>
-      )}
-      {pending && (
-        <Confirm
-          title="Desactivar trabajador"
-          busy={busy}
-          onClose={() => setPending(null)}
-          onConfirm={async () => {
-            setBusy(true);
-            try {
-              await persist(pending);
-            } catch (e) {
-              toast(e instanceof Error ? e.message : "Error al guardar", true);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <p>
-            Se conservarán los registros históricos del trabajador. Confirma el
-            cambio de estado.
-          </p>
-        </Confirm>
-      )}
-      {view && q.data && (
-        <EmployeeDetail
-          employee={view}
-          data={q.data}
-          onClose={() => setView(null)}
+          onSaved={q.reload}
         />
       )}
     </>

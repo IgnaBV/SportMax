@@ -88,7 +88,11 @@ Desde el menú puedes revisar:
 
 - **Dashboard:** indicadores y accesos rápidos.
 - **Inventarios:** productos, existencias por sucursal, entradas, salidas, ajustes y movimientos.
-- **RRHH:** trabajadores, asistencia, permisos, vacaciones y documentos. El detalle del trabajador incluye horarios.
+- **RRHH:** listado con búsqueda por nombre/identificación y filtros por área, cargo y estado. «Ver ficha» abre una ficha única con Información, Asistencia, Permisos, Vacaciones, Horario y Documentos.
+
+En la ficha puedes editar información, registrar asistencia y solicitudes, asignar o actualizar el horario, y registrar o editar documentos. Se muestra la fecha y el responsable de las modificaciones registradas desde que se instaló la auditoría. En permisos y vacaciones, «Consultar» no modifica datos; «Aprobar» y «Rechazar» requieren una confirmación independiente.
+
+La comparación de asistencia utiliza el horario actualmente vigente como referencia y no reconstruye horarios pasados. Los cambios de horario se conservan en su historial.
 
 Cerrar sesión permite probar otro rol. La aplicación comprueba el rol guardado en `app_metadata.role`; Supabase también limita el acceso mediante políticas RLS.
 
@@ -107,6 +111,10 @@ Cerrar sesión permite probar otro rol. La aplicación comprueba el rol guardado
 - `src/modules/inventory/services/inventory.ts`: consultas y operaciones de Inventarios.
 - `src/modules/hr/pages/` y `src/modules/hr/components/`: pantallas, solicitudes y detalle del trabajador.
 - `src/modules/hr/services/hr.ts`: consultas y operaciones de RRHH.
+- `src/modules/hr/components/EmployeeDetail.tsx`: ficha centralizada, accesible en `/hr/employees/ID` utilizando el ID real del trabajador.
+- `src/modules/hr/components/SchedulePanel.tsx`: consulta y actualización del horario.
+- `src/modules/hr/components/Audit.tsx`: fecha, responsable e historial de cambios.
+- `src/modules/hr/permissions.ts`: capacidades de acceso a RRHH; no habilita un módulo de Gerencia.
 - `src/components/common/UI.tsx`: tablas, formularios, diálogos y estados reutilizables.
 - `src/routes/AppRoutes.tsx`: rutas y control visual de acceso por rol.
 - `src/types/entities.ts`: tipos TypeScript de las entidades.
@@ -196,5 +204,7 @@ El repositorio debe incluir el código fuente, la configuración, `package.json`
 Solicita por separado la URL y la clave pública de Supabase. No subas `.env.admin.local` ni otras claves administrativas: no son necesarias para ejecutar o modificar el frontend. `.gitignore` no elimina archivos que ya hayan sido agregados al historial del repositorio.
 
 Para usar una base nueva, hace falta obtener del responsable el esquema de las tablas existentes y configurar Supabase Auth y sus roles. **`supabase/setup.sql` no crea las tablas:** instala políticas y la función de inventario sobre una base ya preparada. `supabase/seed.sql` está vacío; no es una copia de la base de datos.
+
+En una instancia nueva, después de preparar las tablas y aplicar `supabase/setup.sql`, aplica también `supabase/migrations/20260923_rrhh_auditoria.sql` desde SQL Editor para disponer de horarios editables e historial de RRHH. En el Supabase actual ya está aplicada. Esta migración reutiliza las tablas existentes y registra el usuario autenticado como responsable.
 
 El script `scripts/create-test-users.mjs` es una herramienta administrativa opcional para crear las cuentas, no un paso del arranque normal. Puedes trabajar con las cuentas ya creadas sin recibir la clave administrativa.

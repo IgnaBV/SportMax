@@ -1349,3 +1349,139 @@ dd {
 .sidebar .brand {
   font-size: 24px;
 }
+/* Ficha centralizada de Recursos Humanos */
+.employee-filters {
+  align-items: flex-end;
+}
+.employee-filters > label {
+  display: grid;
+  gap: 7px;
+  min-width: 145px;
+  flex: 1;
+}
+.employee-filters > label:first-child {
+  flex: 2;
+  min-width: 230px;
+}
+.back-link {
+  margin-bottom: 20px;
+}
+.employee-record-summary {
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: #faf7f1;
+}
+.employee-record-summary .employee-summary {
+  margin-bottom: 0;
+}
+.employee-tabs {
+  margin: 0;
+  padding: 0 24px;
+  gap: 20px;
+}
+.employee-tabs button {
+  padding: 18px 3px;
+  white-space: nowrap;
+}
+.employee-tab-content {
+  padding: 24px;
+  min-width: 0;
+}
+.employee-tab-content .panel {
+  margin-bottom: 0;
+}
+.record-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.record-section-heading p {
+  font-size: 12px;
+  margin-top: 6px;
+}
+.audit-stamp {
+  font-size: 11px;
+  color: #71665a;
+  overflow-wrap: anywhere;
+}
+.audit-stamp small {
+  display: block;
+  color: #918374;
+  margin-top: 4px;
+}
+.audit-history {
+  margin-top: 24px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.audit-history summary {
+  padding: 14px 18px;
+  cursor: pointer;
+  color: #6b1d2f;
+  background: #faf7f1;
+  font-size: 12px;
+  font-weight: 600;
+}
+.audit-history p {
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+.schedule-card {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 25px;
+  background: #f4efe6;
+  border-radius: 10px;
+}
+.schedule-card > svg {
+  color: #6b1d2f;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+.schedule-card > div:nth-child(2) {
+  flex: 1;
+}
+.schedule-card h3 {
+  color: #6b1d2f;
+  font-size: 25px;
+  margin: 6px 0;
+}
+.schedule-card span,
+.schedule-card small {
+  font-size: 12px;
+  color: #897662;
+}
+@media (max-width: 600px) {
+  .employee-record-summary {
+    flex-wrap: wrap;
+    padding: 18px;
+  }
+  .employee-record-summary > .muted {
+    display: none;
+  }
+  .employee-tab-content {
+    padding: 16px;
+  }
+  .employee-tabs {
+    padding: 0 16px;
+    gap: 16px;
+  }
+  .record-section-heading {
+    flex-wrap: wrap;
+  }
+  .schedule-card {
+    flex-wrap: wrap;
+    padding: 18px;
+  }
+  .schedule-card > .audit-stamp {
+    flex-basis: 100%;
+  }
+}

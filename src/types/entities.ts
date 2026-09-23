@@ -32,7 +32,21 @@ export interface Movement {
   responsable: string;
   created_at: string;
 }
-export interface Employee {
+export interface AuditEvent {
+  fecha: string;
+  usuario_id: string | null;
+  responsable: string;
+  accion: string;
+  anterior: Record<string, unknown> | null;
+  nuevo: Record<string, unknown>;
+}
+export interface Audited {
+  updated_at?: string | null;
+  updated_by?: string | null;
+  updated_by_label?: string | null;
+  historial?: AuditEvent[];
+}
+export interface Employee extends Audited {
   id: Id;
   nombres: string;
   apellidos: string;
@@ -46,7 +60,7 @@ export interface Employee {
   estado: string;
   created_at: string;
 }
-export interface Attendance {
+export interface Attendance extends Audited {
   id: Id;
   trabajador_id: Id;
   fecha: string;
@@ -55,14 +69,15 @@ export interface Attendance {
   estado: string;
   observacion: string;
 }
-export interface Schedule {
+export interface Schedule extends Audited {
+  created_at?: string;
   id: Id;
   trabajador_id: Id;
   hora_entrada: string;
   hora_salida: string;
   activo: boolean;
 }
-export interface Request {
+export interface Request extends Audited {
   id: Id;
   trabajador_id: Id;
   tipo: "PERMISO" | "VACACIONES";
@@ -73,7 +88,7 @@ export interface Request {
   observacion_respuesta: string | null;
   created_at: string;
 }
-export interface Document {
+export interface Document extends Audited {
   id: Id;
   trabajador_id: Id;
   nombre: string;

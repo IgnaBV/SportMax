@@ -1,0 +1,253 @@
+{
+  "asistencias": {
+    "required": [
+      "id",
+      "trabajador_id",
+      "fecha"
+    ],
+    "properties": {
+      "id": {
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "bigint",
+        "type": "integer"
+      },
+      "trabajador_id": {
+        "description": "Note:\nThis is a Foreign Key to `trabajadores.id`.<fk table='trabajadores' column='id'/>",
+        "format": "bigint",
+        "type": "integer"
+      },
+      "fecha": {
+        "default": "CURRENT_DATE",
+        "format": "date",
+        "type": "string"
+      },
+      "hora_entrada": {
+        "format": "time without time zone",
+        "type": "string"
+      },
+      "hora_salida": {
+        "format": "time without time zone",
+        "type": "string"
+      },
+      "estado": {
+        "default": "PRESENTE",
+        "format": "character varying",
+        "maxLength": 30,
+        "type": "string"
+      },
+      "observacion": {
+        "format": "text",
+        "type": "string"
+      },
+      "created_at": {
+        "default": "now()",
+        "format": "timestamp with time zone",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "horarios": {
+    "required": [
+      "id",
+      "trabajador_id",
+      "hora_entrada",
+      "hora_salida"
+    ],
+    "properties": {
+      "id": {
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "bigint",
+        "type": "integer"
+      },
+      "trabajador_id": {
+        "description": "Note:\nThis is a Foreign Key to `trabajadores.id`.<fk table='trabajadores' column='id'/>",
+        "format": "bigint",
+        "type": "integer"
+      },
+      "hora_entrada": {
+        "format": "time without time zone",
+        "type": "string"
+      },
+      "hora_salida": {
+        "format": "time without time zone",
+        "type": "string"
+      },
+      "activo": {
+        "default": true,
+        "format": "boolean",
+        "type": "boolean"
+      },
+      "created_at": {
+        "default": "now()",
+        "format": "timestamp with time zone",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "documentos_trabajador": {
+    "required": [
+      "id",
+      "trabajador_id",
+      "nombre"
+    ],
+    "properties": {
+      "id": {
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "bigint",
+        "type": "integer"
+      },
+      "trabajador_id": {
+        "description": "Note:\nThis is a Foreign Key to `trabajadores.id`.<fk table='trabajadores' column='id'/>",
+        "format": "bigint",
+        "type": "integer"
+      },
+      "nombre": {
+        "format": "character varying",
+        "maxLength": 150,
+        "type": "string"
+      },
+      "tipo": {
+        "format": "character varying",
+        "maxLength": 100,
+        "type": "string"
+      },
+      "archivo_url": {
+        "format": "text",
+        "type": "string"
+      },
+      "created_at": {
+        "default": "now()",
+        "format": "timestamp with time zone",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "solicitudes": {
+    "required": [
+      "id",
+      "trabajador_id",
+      "tipo",
+      "fecha_inicio",
+      "fecha_fin"
+    ],
+    "properties": {
+      "id": {
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "bigint",
+        "type": "integer"
+      },
+      "trabajador_id": {
+        "description": "Note:\nThis is a Foreign Key to `trabajadores.id`.<fk table='trabajadores' column='id'/>",
+        "format": "bigint",
+        "type": "integer"
+      },
+      "tipo": {
+        "format": "character varying",
+        "maxLength": 30,
+        "type": "string"
+      },
+      "fecha_inicio": {
+        "format": "timestamp with time zone",
+        "type": "string"
+      },
+      "fecha_fin": {
+        "format": "timestamp with time zone",
+        "type": "string"
+      },
+      "motivo": {
+        "format": "text",
+        "type": "string"
+      },
+      "estado": {
+        "default": "PENDIENTE",
+        "format": "character varying",
+        "maxLength": 30,
+        "type": "string"
+      },
+      "observacion_respuesta": {
+        "format": "text",
+        "type": "string"
+      },
+      "created_at": {
+        "default": "now()",
+        "format": "timestamp with time zone",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "trabajadores": {
+    "required": [
+      "id",
+      "nombres",
+      "apellidos",
+      "identificacion",
+      "fecha_ingreso"
+    ],
+    "properties": {
+      "id": {
+        "description": "Note:\nThis is a Primary Key.<pk/>",
+        "format": "bigint",
+        "type": "integer"
+      },
+      "nombres": {
+        "format": "character varying",
+        "maxLength": 100,
+        "type": "string"
+      },
+      "apellidos": {
+        "format": "character varying",
+        "maxLength": 100,
+        "type": "string"
+      },
+      "identificacion": {
+        "format": "character varying",
+        "maxLength": 50,
+        "type": "string"
+      },
+      "telefono": {
+        "format": "character varying",
+        "maxLength": 30,
+        "type": "string"
+      },
+      "direccion": {
+        "format": "character varying",
+        "maxLength": 200,
+        "type": "string"
+      },
+      "area": {
+        "format": "character varying",
+        "maxLength": 100,
+        "type": "string"
+      },
+      "cargo": {
+        "format": "character varying",
+        "maxLength": 100,
+        "type": "string"
+      },
+      "fecha_ingreso": {
+        "format": "date",
+        "type": "string"
+      },
+      "salario": {
+        "format": "numeric",
+        "type": "number"
+      },
+      "estado": {
+        "default": "ACTIVO",
+        "format": "character varying",
+        "maxLength": 20,
+        "type": "string"
+      },
+      "created_at": {
+        "default": "now()",
+        "format": "timestamp with time zone",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  }
+}

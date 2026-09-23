@@ -35,6 +35,7 @@ Si la función aún no está instalada, la interfaz muestra un error explícito.
 - `/login`, `/dashboard`
 - `/inventory`, `/inventory/products`, `/inventory/stock`, `/inventory/entries`, `/inventory/exits`, `/inventory/adjustments`, `/inventory/movements`
 - `/hr`, `/hr/employees`, `/hr/attendance`, `/hr/permissions`, `/hr/vacations`, `/hr/documents`
+- `/hr/employees/:employeeId`: ficha única por ID de PostgreSQL. `?tab=informacion|asistencia|permisos|vacaciones|horario|documentos` selecciona la sección.
 
 Todas las rutas empresariales requieren sesión y un rol autorizado. Hay pantalla de acceso denegado, 404, estados vacíos, carga y error. La ruta raíz redirige al dashboard. En hosting estático configura la reescritura de rutas a `/index.html`.
 
@@ -55,6 +56,20 @@ Los documentos se vinculan con URL HTTPS existente. No se suben archivos ni se a
 Para repetir el smoke test, inicia Vite en `127.0.0.1:5173`, utiliza Playwright con Microsoft Edge instalado y ejecuta `node tests/smoke.mjs`. Si Playwright no está en el proyecto, `PLAYWRIGHT_MODULE` permite indicar la URL `file:///.../playwright/index.mjs` de una instalación externa, sin cambiar las dependencias. Las capturas en `tests/` contienen únicamente datos simulados.
 
 La validación con usuarios reales y las escrituras autenticadas requieren una cuenta de Supabase Auth con el rol correspondiente. Las pruebas visuales no sustituyen una auditoría de las políticas RLS con sesiones reales de cada rol.
+
+## Ficha de RRHH y trazabilidad
+
+El listado de trabajadores incluye búsqueda por nombre/identificación, filtros por área, cargo y estado, y paginación de 12 filas. Desde «Ver ficha» se gestionan los seis procesos del trabajador con su `trabajadores.id`; las consultas de la ficha se filtran por ese ID en Supabase.
+
+La migración `supabase/migrations/20260923_rrhh_auditoria.sql` se preparó tras inspeccionar el esquema real y ya se aplicó a la instancia actual. En otra instancia se ejecuta después de disponer de las tablas y de `supabase/setup.sql`. No crea tablas: añade `updated_at`, `updated_by`, `updated_by_label` e `historial` a las cinco tablas de RRHH. Los triggers conservan valores anteriores/nuevos y toman el responsable de Supabase Auth, ignorando autores o historiales enviados por el cliente. Los registros anteriores a la migración no tienen una autoría reconstruida.
+
+`actualizar_horario_rrhh` mantiene un único horario vigente por trabajador, bloquea la fila durante el cambio y rechaza versiones obsoletas. Los documentos admiten referencias sin URL y edición con comprobación de versión. Las solicitudes separan consulta y decisión; una solicitud resuelta no se puede volver a modificar. La auditoría se consulta desde la ficha o el detalle documental/de solicitud.
+
+La asistencia muestra las horas registradas junto al horario **actualmente vigente**, con diferencia de entrada en minutos. Es una referencia visual: no reconstruye el horario de fechas pasadas ni cambia automáticamente el estado de asistencia. Los cambios anteriores de horario se consultan en su historial. Un horario cuya salida sea anterior a la entrada corresponde a un turno nocturno.
+
+El acceso completo sigue limitado a ADMINISTRADOR y RRHH mediante Auth, rutas y RLS. `src/modules/hr/permissions.ts` separa capacidades de lectura, escritura y resumen para futuras ampliaciones; no habilita un rol ni un módulo de Gerencia.
+
+`node tests/hr-integration.mjs` comprueba con sesiones reales la auditoría, concurrencia, decisiones y aislamiento de Inventario. Necesita los archivos locales administrativos y de usuarios de prueba. Crea registros temporales identificados como pruebas, elimina únicamente esos registros al terminar y no modifica datos preexistentes. Se ejecutó correctamente contra la instancia configurada.
 
 ## Usuarios de prueba
 
