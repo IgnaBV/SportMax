@@ -1,3 +1,5 @@
+import AttendanceDifference from "../components/AttendanceDifference";
+import AttendanceEditor from "../components/AttendanceEditor";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { useState, useCallback } from "react";
 import { Plus, Pencil } from "lucide-react";
@@ -9,14 +11,15 @@ import {
   Table,
   Badge,
   Modal,
-  DataForm,
 } from "@/components/common/UI";
 import { useQuery } from "@/hooks/useQuery";
-import { loadHR, saveAttendance } from "../services/hr";
+import { loadHR } from "../services/hr";
 import { date, same, fullName } from "@/lib/data";
 import { useToast } from "@/context/toast";
 import { AuditStamp } from "../components/Audit";
-import { compareAttendance, hour } from "../services/presentation";
+import {
+  hour,
+} from "../services/presentation";
 export default function AttendancePage({ employeeId }: { employeeId?: Id }) {
   const loader = useCallback(() => loadHR(employeeId), [employeeId]);
   const q = useQuery(loader);
@@ -32,9 +35,9 @@ export default function AttendancePage({ employeeId }: { employeeId?: Id }) {
     return matches.length === 1 ? matches[0] : undefined;
   };
   const action = (
-    <Button onClick={() => setEdit("new")}>
+    <Button disabled={q.loading || !!q.error} onClick={() => setEdit("new")}>
       <Plus />
-      Registrar asistencia
+      Marcar entrada / asistencia
     </Button>
   );
   return (
@@ -103,6 +106,7 @@ export default function AttendancePage({ employeeId }: { employeeId?: Id }) {
               "Salida registrada",
               "Horario vigente",
               "Comparación de entrada",
+              "Comparación de salida",
               "Estado",
               "Observación",
               "Última modificación",
@@ -128,17 +132,18 @@ export default function AttendancePage({ employeeId }: { employeeId?: Id }) {
                   schedule(a.trabajador_id)
                     ? `${hour(schedule(a.trabajador_id)?.hora_entrada)} — ${hour(schedule(a.trabajador_id)?.hora_salida)}`
                     : "Sin horario",
-                  compareAttendance(a, schedule(a.trabajador_id)),
+                  <AttendanceDifference record={a} schedule={schedule(a.trabajador_id)} kind="entry" />,
+                  <AttendanceDifference record={a} schedule={schedule(a.trabajador_id)} kind="exit" />,
                   <Badge>{a.estado}</Badge>,
                   a.observacion || "—",
                   <AuditStamp record={a} />,
                   <Button
                     variant="ghost"
-                    size="icon"
                     aria-label="Editar asistencia"
                     onClick={() => setEdit(a)}
                   >
                     <Pencil />
+                    {a.hora_entrada && !a.hora_salida ? "Marcar salida" : "Editar asistencia"}
                   </Button>,
                 ]) || []
             }
@@ -150,82 +155,15 @@ export default function AttendancePage({ employeeId }: { employeeId?: Id }) {
           title={edit === "new" ? "Registrar asistencia" : "Editar asistencia"}
           onClose={() => setEdit(null)}
         >
-          <DataForm
-            initial={
-              edit === "new"
-                ? { estado: "PRESENTE", trabajador_id: String(selected) }
-                : { ...edit }
-            }
+          <AttendanceEditor
+            current={edit}
+            employeeId={employeeId}
+            selected={selected}
+            employees={d?.employees ?? []}
+            schedules={d?.schedules ?? []}
+            records={d?.attendance ?? []}
             onClose={() => setEdit(null)}
-            fields={[
-              ...(!employeeId
-                ? [
-                    {
-                      name: "trabajador_id",
-                      searchable: true,
-                      label: "Trabajador",
-                      required: true,
-                      options:
-                        d?.employees
-                          .filter(
-                            (e) =>
-                              e.estado === "ACTIVO" ||
-                              (edit !== "new" &&
-                                same(e.id, edit.trabajador_id)),
-                          )
-                          .map((e) => ({
-                            value: String(e.id),
-                            label: fullName(e),
-                          })) || [],
-                    },
-                  ]
-                : []),
-              { name: "fecha", label: "Fecha", type: "date", required: true },
-              { name: "hora_entrada", label: "Hora de entrada", type: "time" },
-              { name: "hora_salida", label: "Hora de salida", type: "time" },
-              {
-                name: "estado",
-                label: "Estado",
-                required: true,
-                options: ["PRESENTE", "ATRASO", "AUSENTE", "PERMISO"].map(
-                  (s) => ({ value: s, label: s }),
-                ),
-              },
-              { name: "observacion", label: "Observación", type: "textarea" },
-            ]}
-            validate={(v) => {
-              const errors: Record<string, string> = {};
-              const id = employeeId ?? v.trabajador_id;
-              const planned = schedule(id);
-              const overnight =
-                planned && planned.hora_salida < planned.hora_entrada;
-              if (
-                d?.attendance.some(
-                  (a) =>
-                    same(a.trabajador_id, id) &&
-                    (edit === "new" || !same(a.id, edit.id)) &&
-                    a.fecha === v.fecha,
-                )
-              )
-                errors.fecha =
-                  "Ya existe asistencia para este trabajador y fecha";
-              if (
-                v.hora_salida &&
-                (!v.hora_entrada ||
-                  v.hora_salida === v.hora_entrada ||
-                  (!overnight && v.hora_salida < v.hora_entrada))
-              )
-                errors.hora_salida =
-                  "La salida debe ser posterior a la entrada (salvo un horario nocturno asignado)";
-              if (["PRESENTE", "ATRASO"].includes(v.estado) && !v.hora_entrada)
-                errors.hora_entrada = "Registra la hora de entrada";
-              return errors;
-            }}
-            onSave={async (v) => {
-              await saveAttendance(
-                { ...v, trabajador_id: String(employeeId ?? v.trabajador_id) },
-                edit === "new" ? undefined : edit.id,
-              );
+            onSaved={() => {
               setEdit(null);
               q.reload();
               toast("Asistencia registrada correctamente");

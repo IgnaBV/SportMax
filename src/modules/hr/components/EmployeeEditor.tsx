@@ -1,26 +1,35 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Modal, DataForm, Confirm, type Field } from "@/components/common/UI";
-import type { Employee } from "@/types/entities";
-import { saveEmployee } from "../services/hr";
+import type { Employee, Id } from "@/types/entities";
+import { saveEmployee, saveSchedule } from "../services/hr";
 import { useToast } from "@/context/toast";
 const positionsByArea = new Map<string, string[]>([
-  ["RECURSOS HUMANOS", [
-    "Responsable de Recursos Humanos",
-    "Analista de Recursos Humanos",
-    "Auxiliar de Recursos Humanos",
-  ]],
-  ["LOGÍSTICA E INVENTARIOS", [
-    "Responsable de Logística e Inventarios",
-    "Encargado de Inventario",
-    "Encargado de Almacén",
-    "Auxiliar de Inventario",
-  ]],
-  ["VENTAS", [
-    "Responsable de Ventas",
-    "Supervisor de Ventas",
-    "Vendedor",
-    "Vendedor/Cajero",
-  ]],
+  [
+    "RECURSOS HUMANOS",
+    [
+      "Responsable de Recursos Humanos",
+      "Analista de Recursos Humanos",
+      "Auxiliar de Recursos Humanos",
+    ],
+  ],
+  [
+    "LOGÍSTICA E INVENTARIOS",
+    [
+      "Responsable de Logística e Inventarios",
+      "Encargado de Inventario",
+      "Encargado de Almacén",
+      "Auxiliar de Inventario",
+    ],
+  ],
+  [
+    "VENTAS",
+    [
+      "Responsable de Ventas",
+      "Supervisor de Ventas",
+      "Vendedor",
+      "Vendedor/Cajero",
+    ],
+  ],
 ]);
 const fields: Field[] = [
   {
@@ -34,14 +43,25 @@ const fields: Field[] = [
   { name: "telefono", label: "Teléfono", type: "tel" },
   { name: "direccion", label: "Dirección" },
   {
-    name: "area", label: "Área", required: true, section: "Datos laborales",
-    options: [...positionsByArea.keys()].map((area) => ({ value: area, label: area })),
+    name: "area",
+    label: "Área",
+    required: true,
+    section: "Datos laborales",
+    options: [...positionsByArea.keys()].map((area) => ({
+      value: area,
+      label: area,
+    })),
   },
   {
-    name: "cargo", label: "Cargo", required: true, dependsOn: "area",
-    getOptions: (values) => (positionsByArea.get(values.area) ?? []).map(
-      (cargo) => ({ value: cargo, label: cargo }),
-    ),
+    name: "cargo",
+    label: "Cargo",
+    required: true,
+    dependsOn: "area",
+    getOptions: (values) =>
+      (positionsByArea.get(values.area) ?? []).map((cargo) => ({
+        value: cargo,
+        label: cargo,
+      })),
   },
   {
     name: "fecha_ingreso",
@@ -77,11 +97,28 @@ export default function EmployeeEditor({
   onSaved: () => void;
 }) {
   const toast = useToast();
+  const createdId = useRef<Id | undefined>(undefined);
   const [pending, setPending] = useState<Record<string, string> | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function persist(v: Record<string, string>) {
-    await saveEmployee(v, employee === "new" ? undefined : employee.id);
+    const { hora_entrada, hora_salida, ...information } = v;
+    const saved = await saveEmployee(
+      information,
+      employee === "new" ? createdId.current : employee.id,
+    );
+    if (employee === "new") {
+      createdId.current = saved.id;
+      try {
+        await saveSchedule(saved.id, { hora_entrada, hora_salida });
+      } catch (error) {
+        onSaved();
+        throw new Error(
+          `El trabajador quedó registrado, pero falta guardar su horario. Puedes volver a guardar sin duplicarlo o asignarlo desde su ficha. ${error instanceof Error ? error.message : ""}`,
+          { cause: error },
+        );
+      }
+    }
     onSaved();
     onClose();
     toast("Trabajador guardado correctamente");
@@ -96,9 +133,34 @@ export default function EmployeeEditor({
       >
         <DataForm
           initial={employee === "new" ? { estado: "ACTIVO" } : { ...employee }}
-          fields={fields}
+          fields={
+            employee === "new"
+              ? [
+                  ...fields,
+                  {
+                    name: "hora_entrada",
+                    label: "Hora de entrada asignada",
+                    section: "Horario de trabajo",
+                    type: "time",
+                    required: true,
+                  },
+                  {
+                    name: "hora_salida",
+                    label: "Hora de salida asignada",
+                    type: "time",
+                    required: true,
+                  },
+                ]
+              : fields
+          }
           validate={(values) => {
             const errors: Record<string, string> = {};
+            if (
+              employee === "new" &&
+              values.hora_entrada === values.hora_salida
+            ) {
+              errors.hora_salida = "La entrada y la salida deben ser distintas";
+            }
             if (!positionsByArea.has(values.area)) {
               errors.area = "Selecciona un área del listado";
             }

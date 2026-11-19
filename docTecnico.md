@@ -208,3 +208,22 @@ Para usar una base nueva, hace falta obtener del responsable el esquema de las t
 En una instancia nueva, después de preparar las tablas y aplicar `supabase/setup.sql`, aplica también `supabase/migrations/20260923_rrhh_auditoria.sql` desde SQL Editor para disponer de horarios editables e historial de RRHH. En el Supabase actual ya está aplicada. Esta migración reutiliza las tablas existentes y registra el usuario autenticado como responsable.
 
 El script `scripts/create-test-users.mjs` es una herramienta administrativa opcional para crear las cuentas, no un paso del arranque normal. Puedes trabajar con las cuentas ya creadas sin recibir la clave administrativa.
+
+## Buzón de reposición
+
+Aplica `supabase/migrations/20260925_avisos_reposicion.sql` en el SQL Editor de Supabase para habilitar los avisos entre Inventario y Administración. Crea únicamente la tabla de avisos y sus funciones con permisos por rol; no cambia existencias ni genera pedidos.
+
+El buzón está en `/inventory/notifications`. Los usuarios de Inventario ven alertas por producto activo y sucursal cuando la cantidad es menor o igual al mínimo (sin registro de inventario se considera cero). Pueden avisar al administrador desde Existencias o desde el buzón. No se duplica un aviso que ya está pendiente para el mismo producto y sucursal. Administración puede marcarlo como visto; esa acción es compartida entre administradores y no confirma una reposición. Una vez visto, Inventario puede enviar otro aviso si el stock continúa bajo.
+
+La campana se actualiza al registrar movimientos, al recuperar el foco y cada 30 segundos con la aplicación visible. Las alertas de stock desaparecen cuando se supera el mínimo; los avisos enviados conservan su historial. Son notificaciones dentro de la aplicación, sin correo ni notificaciones del sistema operativo. Antes de aplicar la migración se pueden consultar las alertas de stock, pero no enviar ni recibir avisos compartidos.
+
+## Proveedores y compras recibidas
+
+Ejecuta `supabase/migrations/20260925_compras_proveedores.sql` en el SQL Editor de Supabase, después de `supabase/setup.sql`. Reutiliza los tipos de ID de productos y sucursales, agrega `productos.proveedor_id`, las tablas `proveedores` y `compras`, las políticas por rol y la función transaccional `registrar_compra_recibida`. No requiere volver a ejecutar las migraciones anteriores que ya estén aplicadas.
+
+1. Inicia sesión como ADMINISTRADOR y abre **Proveedores**. Puedes registrar, editar o desactivar proveedores. Se incluyen Nike (demo), Adidas (demo) y Supreme (demo) con identificación, contacto, correo, teléfono, dirección y notas de demostración. Sus datos son ficticios, no pertenecen a distribuidores oficiales y deben reemplazarse antes del uso real.
+2. En **Productos → Editar**, asigna el proveedor principal. No se enlazan automáticamente los productos existentes para evitar asociaciones incorrectas. El catálogo de proveedores puede ser consultado por Inventario para vincular productos; solo Administración puede modificar proveedores o consultar costos de compras.
+3. Desde **Compras y reposición**, **Existencias → Reponer con compra**, el buzón o el enlace de Registrar entrada, registra una compra recibida. Selecciona proveedor, producto, sucursal, unidades, costo unitario en Bs y fecha de recepción; el comprobante y la observación son opcionales.
+4. Revisa el total y el stock previsto, y confirma. Se guardan compra y movimiento ENTRADA juntos: un error revierte ambos. El movimiento incluye el identificador de compra en su motivo. El historial conserva los nombres originales aunque se edite el proveedor. Cada registro corresponde a un producto; no envía pedidos, mensajes ni pagos al proveedor.
+
+El stock esperado se valida para detectar operaciones concurrentes. Los reintentos de la misma confirmación usan el mismo identificador para no duplicar una compra. Si el stock cambió, cancela y actualiza el historial antes de crear otra operación; ante una respuesta de red incierta, reintenta la misma confirmación o consulta el historial. Los avisos del buzón se marcan como vistos por separado; la alerta de stock desaparece cuando la cantidad supera el mínimo.

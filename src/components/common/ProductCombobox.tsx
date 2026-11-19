@@ -14,11 +14,23 @@ export default function ProductCombobox({
   value,
   options,
   onChange,
+  label = "Productos",
+  placeholder = "Buscar por código o nombre…",
+  emptyMessage = "No se encontraron productos.",
+  required = true,
+  invalid,
+  describedBy,
 }: {
   id: string;
   value: string;
   options: Option[];
   onChange: (value: string) => void;
+  label?: string;
+  placeholder?: string;
+  emptyMessage?: string;
+  required?: boolean;
+  invalid?: boolean;
+  describedBy?: string;
 }) {
   const listId = useId();
   const list = useRef<HTMLUListElement>(null);
@@ -42,14 +54,17 @@ export default function ProductCombobox({
         id={id}
         role="combobox"
         autoComplete="off"
-        required
+        required={required}
+        aria-label={label}
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
         aria-expanded={open}
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={
           open && matches[active] ? `${listId}-${active}` : undefined
         }
-        placeholder="Buscar por código o nombre…"
+        placeholder={placeholder}
         value={open ? query : (selected?.label ?? "")}
         onFocus={() => {
           setOpen(true);
@@ -66,11 +81,12 @@ export default function ProductCombobox({
           setQuery(event.target.value);
           setOpen(true);
           setActive(-1);
-          onChange("");
+          if (value) onChange("");
         }}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault();
+            if (open) event.stopPropagation();
             setOpen(false);
             setQuery("");
             setActive(-1);
@@ -97,7 +113,7 @@ export default function ProductCombobox({
           id={listId}
           ref={list}
           role="listbox"
-          aria-label="Productos"
+          aria-label={label}
           className="product-combobox-options"
         >
           {matches.map((option, index) => (
@@ -113,9 +129,7 @@ export default function ProductCombobox({
               {option.label}
             </li>
           ))}
-          {!matches.length && (
-            <li role="presentation">No se encontraron productos.</li>
-          )}
+          {!matches.length && <li role="presentation">{emptyMessage}</li>}
         </ul>
       )}
     </div>

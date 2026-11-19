@@ -4,6 +4,7 @@ export interface Named {
   nombre: string;
 }
 export interface Product extends Named {
+  proveedor_id?: Id | null;
   codigo: string;
   descripcion: string | null;
   categoria_id: Id | null;

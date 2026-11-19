@@ -1,4 +1,10 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth";
+import { useToast } from "@/context/toast";
+import { sendReplenishmentNotice } from "../services/notifications";
+import type { Id } from "@/types/entities";
 import {
   PageTitle,
   QueryState,
@@ -11,6 +17,25 @@ import { loadInventory } from "../services/inventory";
 import { same } from "@/lib/data";
 export default function StockPage() {
   const q = useQuery(loadInventory);
+  const { role } = useAuth();
+  const toast = useToast();
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState<Set<string>>(() => new Set());
+  async function notify(productId: Id, branchId: Id) {
+    setSending(true);
+    try {
+      await sendReplenishmentNotice(productId, branchId);
+      setSent((current) => new Set(current).add(`${productId}:${branchId}`));
+      toast("Aviso de reposición disponible en el buzón del administrador");
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "No se pudo enviar el aviso",
+        true,
+      );
+    } finally {
+      setSending(false);
+    }
+  }
   const [search, setSearch] = useState("");
   const [branch, setBranch] = useState("");
   const [low, setLow] = useState(false);
@@ -71,6 +96,14 @@ export default function StockPage() {
           </label>
         </div>
         <QueryState {...q}>
+          {rows.some((r) => r.p.activo && r.quantity <= r.p.stock_minimo) && (
+            <div className="notice" role="status">
+              Hay productos con stock bajo en las sucursales seleccionadas.{" "}
+              <Link className="text-link" to="/inventory/notifications">
+                Abrir buzón de reposición
+              </Link>
+            </div>
+          )}
           <div className="inline-summary">
             {rows.length} combinaciones ·{" "}
             <strong>
@@ -79,7 +112,14 @@ export default function StockPage() {
             </strong>
           </div>
           <Table
-            headers={["Producto", "Sucursal", "Disponible", "Mínimo", "Estado"]}
+            headers={[
+              "Producto",
+              "Sucursal",
+              "Disponible",
+              "Mínimo",
+              "Estado",
+              "Reposición",
+            ]}
             rows={rows.map((r) => [
               <div>
                 <strong>{r.p.nombre}</strong>
@@ -97,6 +137,34 @@ export default function StockPage() {
                     ? "Bajo"
                     : "Correcto"}
               </Badge>,
+              ...(role === "INVENTARIO"
+                ? [
+                    r.p.activo && r.quantity <= r.p.stock_minimo ? (
+                      <Button
+                        variant="outline"
+                        disabled={sending || sent.has(`${r.p.id}:${r.b.id}`)}
+                        onClick={() => notify(r.p.id, r.b.id)}
+                      >
+                        {sent.has(`${r.p.id}:${r.b.id}`)
+                          ? "Aviso enviado"
+                          : "Avisar al administrador"}
+                      </Button>
+                    ) : (
+                      "—"
+                    ),
+                  ]
+                : [
+                    r.p.activo ? (
+                      <Link
+                        className="text-link"
+                        to={`/inventory/purchases?${new URLSearchParams({ product: String(r.p.id), branch: String(r.b.id) })}`}
+                      >
+                        Reponer con compra
+                      </Link>
+                    ) : (
+                      "—"
+                    ),
+                  ]),
             ])}
           />
         </QueryState>

@@ -16,8 +16,10 @@ import { loadInventory, saveProduct } from "../services/inventory";
 import { same } from "@/lib/data";
 import { useToast } from "@/context/toast";
 import type { Product } from "@/types/entities";
+import { loadSuppliers } from "../services/purchases";
 export default function ProductsPage() {
   const q = useQuery(loadInventory);
+  const suppliers = useQuery(loadSuppliers);
   const toast = useToast();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -52,13 +54,18 @@ export default function ProductsPage() {
         title="Productos"
         description="Todo tu catálogo, organizado hasta el último detalle."
         action={
-          <Button onClick={() => setEdit("new")}>
+          <Button disabled={suppliers.loading} onClick={() => setEdit("new")}>
             <Plus />
             Nuevo producto
           </Button>
         }
       />
       <section className="panel">
+        {suppliers.error && (
+          <p className="notice" role="status">
+            {suppliers.error}
+          </p>
+        )}
         <div className="toolbar">
           <SearchBox
             value={search}
@@ -80,6 +87,7 @@ export default function ProductsPage() {
             headers={[
               "Producto",
               "Categoría",
+              "Proveedor principal",
               "Talla / Color",
               "Stock total",
               "Stock mínimo",
@@ -93,6 +101,8 @@ export default function ProductsPage() {
               </div>,
               d?.categories.find((c) => same(c.id, p.categoria_id))?.nombre ||
                 "Sin categoría",
+              suppliers.data?.find((s) => same(s.id, p.proveedor_id))?.nombre ||
+                (p.proveedor_id ? "Proveedor no disponible" : "Sin proveedor"),
               `${p.talla || "—"} / ${p.color || "—"}`,
               <strong>{total(p)}</strong>,
               p.stock_minimo,
@@ -111,6 +121,7 @@ export default function ProductsPage() {
                   variant="ghost"
                   size="icon"
                   title="Editar producto"
+                  disabled={suppliers.loading}
                   aria-label={`Editar ${p.nombre}`}
                   onClick={() => setEdit(p)}
                 >
@@ -141,6 +152,24 @@ export default function ProductsPage() {
             fields={[
               { name: "codigo", label: "Código", required: true },
               { name: "nombre", label: "Nombre", required: true },
+              ...(suppliers.data
+                ? [
+                    {
+                      name: "proveedor_id",
+                      label: "Proveedor principal",
+                      options: suppliers.data
+                        .filter(
+                          (s) =>
+                            s.activo ||
+                            (edit !== "new" && same(s.id, edit.proveedor_id)),
+                        )
+                        .map((s) => ({
+                          value: String(s.id),
+                          label: `${s.nombre}${s.activo ? "" : " (inactivo)"}`,
+                        })),
+                    },
+                  ]
+                : []),
               {
                 name: "categoria_id",
                 label: "Categoría",
@@ -206,6 +235,11 @@ export default function ProductsPage() {
           <div className="modal-body">
             <span className="eyebrow">{view.codigo}</span>
             <p>{view.descripcion || "Sin descripción"}</p>
+            <p>
+              Proveedor:{" "}
+              {suppliers.data?.find((s) => same(s.id, view.proveedor_id))
+                ?.nombre || "Sin proveedor disponible"}
+            </p>
             <div className="stock-preview">
               <span>
                 Existencias totales<strong>{total(view)}</strong>

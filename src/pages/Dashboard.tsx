@@ -111,11 +111,6 @@ export default function Dashboard({ module }: { module?: "inventory" | "hr" }) {
       <div className="welcome-banner">
         <div>
           <span className="eyebrow">TODO CONECTADO. TODO EN ORDEN.</span>
-          <h2>
-            {module === "hr"
-              ? "Un gran equipo empieza con una buena gestión."
-              : "Un nuevo día para hacer crecer tu empresa."}
-          </h2>
           <p>Gestiona tus operaciones con claridad, desde un solo lugar.</p>
         </div>
         <div className="banner-symbol">

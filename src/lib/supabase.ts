@@ -8,4 +8,10 @@ export const configurationError =
 export const supabase = createClient(
   configurationError ? "https://unconfigured.supabase.co" : url,
   configurationError ? "unconfigured-public-key" : key,
+  {
+    auth: {
+      // En desarrollo, cada carga de la aplicación empieza sin sesión previa.
+      persistSession: !import.meta.env.DEV,
+    },
+  },
 );

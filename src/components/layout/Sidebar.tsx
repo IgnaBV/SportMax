@@ -9,6 +9,9 @@ import {
   ArrowUpFromLine,
   SlidersHorizontal,
   History,
+  Bell,
+  ShoppingCart,
+  Truck,
   Users,
   CalendarCheck,
   CalendarDays,
@@ -24,6 +27,7 @@ const inventory = [
   ["/inventory", "Resumen", Boxes],
   ["/inventory/products", "Productos", Package],
   ["/inventory/stock", "Existencias", Layers3],
+  ["/inventory/notifications", "Buzón de reposición", Bell],
   ["/inventory/entries", "Registrar entrada", ArrowDownToLine],
   ["/inventory/exits", "Registrar salida", ArrowUpFromLine],
   ["/inventory/adjustments", "Ajustes", SlidersHorizontal],
@@ -121,6 +125,18 @@ export default function Sidebar({
                   {label}
                 </NavLink>
               ))}
+              {role === "ADMINISTRADOR" && (
+                <>
+                  <NavLink to="/inventory/suppliers" onClick={onClose}>
+                    <Truck size={18} />
+                    Proveedores
+                  </NavLink>
+                  <NavLink to="/inventory/purchases" onClick={onClose}>
+                    <ShoppingCart size={18} />
+                    Compras y reposición
+                  </NavLink>
+                </>
+              )}
             </>
           )}
           {canReadHR(role) && (

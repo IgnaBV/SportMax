@@ -18,7 +18,16 @@ const InventoryDashboard = lazy(
 const ProductsPage = lazy(
   () => import("@/modules/inventory/pages/ProductsPage"),
 );
+const SuppliersPage = lazy(
+  () => import("@/modules/inventory/pages/SuppliersPage"),
+);
+const PurchasesPage = lazy(
+  () => import("@/modules/inventory/pages/PurchasesPage"),
+);
 const StockPage = lazy(() => import("@/modules/inventory/pages/StockPage"));
+const NotificationsPage = lazy(
+  () => import("@/modules/inventory/pages/NotificationsPage"),
+);
 const EntryPage = lazy(() => import("@/modules/inventory/pages/EntryPage"));
 const ExitPage = lazy(() => import("@/modules/inventory/pages/ExitPage"));
 const AdjustmentPage = lazy(
@@ -72,11 +81,17 @@ export default function AppRoutes() {
           />
           <Route element={<Allowed roles={["ADMINISTRADOR"]} />}>
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="inventory/suppliers" element={<SuppliersPage />} />
+            <Route path="inventory/purchases" element={<PurchasesPage />} />
           </Route>
           <Route element={<Allowed roles={["ADMINISTRADOR", "INVENTARIO"]} />}>
             <Route path="inventory" element={<InventoryDashboard />} />
             <Route path="inventory/products" element={<ProductsPage />} />
             <Route path="inventory/stock" element={<StockPage />} />
+            <Route
+              path="inventory/notifications"
+              element={<NotificationsPage />}
+            />
             <Route path="inventory/entries" element={<EntryPage />} />
             <Route path="inventory/exits" element={<ExitPage />} />
             <Route path="inventory/adjustments" element={<AdjustmentPage />} />

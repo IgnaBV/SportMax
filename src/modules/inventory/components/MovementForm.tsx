@@ -8,8 +8,11 @@ import { loadInventory, registerMovement } from "../services/inventory";
 import { same } from "@/lib/data";
 import { useToast } from "@/context/toast";
 import type { MovementType } from "@/types/entities";
+import { useAuth } from "@/context/auth";
+import { Link } from "react-router-dom";
 export default function MovementForm({ type }: { type: MovementType }) {
   const q = useQuery(loadInventory);
+  const { role } = useAuth();
   const toast = useToast();
   const [product, setProduct] = useState("");
   const [category, setCategory] = useState("");
@@ -93,6 +96,17 @@ export default function MovementForm({ type }: { type: MovementType }) {
         }
       />
       <QueryState {...q}>
+        {type === "ENTRADA" && role === "ADMINISTRADOR" && (
+          <p className="notice">
+            ¿La reposición corresponde a una compra?{" "}
+            <Link
+              className="text-link"
+              to={`/inventory/purchases?${new URLSearchParams({ product, branch })}`}
+            >
+              Registrar compra con proveedor y costo
+            </Link>
+          </p>
+        )}
         <div className="operation-layout">
           <section className="panel padded">
             <h2>Información del movimiento</h2>

@@ -131,6 +131,7 @@ export default function EmployeeDetail() {
                         </div>
                       ))}
                     </dl>
+                    <SchedulePanel employeeId={e.id} />
                     <AuditStamp record={e} />
                     <AuditHistory
                       record={e}

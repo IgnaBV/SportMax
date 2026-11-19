@@ -30,15 +30,17 @@ export default function SchedulePanel({ employeeId }: { employeeId: Id }) {
     <section>
       <div className="record-section-heading">
         <div>
-          <h2>Horario</h2>
-          <p>Consulta y actualiza el horario vigente de este trabajador.</p>
+          <h2>Horario de trabajo asignado</h2>
+          <p>
+            Define la hora de entrada y salida que debe cumplir el trabajador.
+          </p>
         </div>
         <Button
           disabled={q.loading || !!q.error || active.length > 1}
           onClick={() => setOpen(true)}
         >
           {current ? <Pencil /> : <Plus />}
-          {current ? "Actualizar horario" : "Asignar horario"}
+          {current ? "Modificar horario" : "Asignar horario"}
         </Button>
       </div>
       <QueryState {...q}>
@@ -98,7 +100,14 @@ export default function SchedulePanel({ employeeId }: { employeeId: Id }) {
             turno nocturno.
           </p>
           <DataForm
-            initial={current ? { ...current } : {}}
+            initial={
+              current
+                ? {
+                    hora_entrada: current.hora_entrada.slice(0, 5),
+                    hora_salida: current.hora_salida.slice(0, 5),
+                  }
+                : {}
+            }
             fields={[
               {
                 name: "hora_entrada",

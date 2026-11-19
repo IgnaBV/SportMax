@@ -47,7 +47,9 @@ Todas las rutas empresariales requieren sesión y un rol autorizado. Hay pantall
 - `src/components/common`: tabla paginada, formularios, diálogos y estados reutilizables.
 - `src/types/entities.ts`: entidades del esquema proporcionado.
 
-Los documentos se vinculan con URL HTTPS existente. No se suben archivos ni se asume un bucket público; los documentos privados necesitan enlaces con control de acceso. Los salarios se muestran solo en formularios/detalle de RRHH. No se crean ventas, compras, nómina ni tablas adicionales.
+Los documentos se vinculan con URL HTTPS existente. No se suben archivos ni se asume un bucket público; los documentos privados necesitan enlaces con control de acceso. Los salarios se muestran solo en formularios/detalle de RRHH. No se crean ventas ni nómina.
+
+Compras y proveedores: aplicar `supabase/migrations/20260925_compras_proveedores.sql` después de `supabase/setup.sql`. El administrador puede crear/editar proveedores, vincular un proveedor principal a cada producto desde el catálogo y registrar compras recibidas en `/inventory/purchases`. Cada compra corresponde a un producto y una sucursal, con costo en bolivianos; guarda el registro y la entrada de stock en una sola transacción. La migración incluye Nike, Adidas y Supreme como proveedores **de demostración con datos ficticios**, sin vincular automáticamente los productos existentes.
 
 ## Verificaciones
 

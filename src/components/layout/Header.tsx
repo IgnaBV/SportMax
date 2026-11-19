@@ -1,8 +1,11 @@
 import { Menu, ShieldCheck } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth";
+import InventoryBell from "@/modules/inventory/components/InventoryBell";
 export default function Header({ onMenu }: { onMenu: () => void }) {
   const { pathname } = useLocation();
+  const { role } = useAuth();
   return (
     <header className="header">
       <div>
@@ -26,6 +29,7 @@ export default function Header({ onMenu }: { onMenu: () => void }) {
           </strong>
         </span>
       </div>
+      {(role === "ADMINISTRADOR" || role === "INVENTARIO") && <InventoryBell />}
       <div className="header-right">
         <span>
           {new Date().toLocaleDateString("es-BO", {
